@@ -9,10 +9,10 @@ import tempfile
 
 app = Flask(__name__)
 
-# Load the YOLOv8 models
-car_detector = YOLO('yolov8n.pt')           # YOLOv8 model for car detection (pre-trained model)
-parts_model = YOLO('besttrainptn.pt')        # Your custom parts detection model
-severity_model = YOLO('best.pt')             # Your custom severity classification model
+# Load the YOLOv8 model for bike detection
+bike_detector = YOLO('yolov8n.pt')          # YOLOv8 model to check for bikes
+parts_model = YOLO('besttrainptn.pt')       # Your custom parts detection model
+severity_model = YOLO('best.pt')            # Your custom severity classification model
 
 # Define the upload folder for images
 UPLOAD_FOLDER = 'uploads'
@@ -34,17 +34,17 @@ def process_image(image_path):
     if img is None:
         raise ValueError("Image could not be read. Please check the image file.")
 
-    # Detect if a car is present in the image using the YOLOv8 model
-    car_detection_results = car_detector.predict(source=image_path, save=False)
+    # Check if the image contains a bike
+    bike_detection_results = bike_detector.predict(source=image_path, save=False)
     
-    car_present = False
-    for result in car_detection_results:
+    bike_present = False
+    for result in bike_detection_results:
         classes = result.boxes.cls.numpy()  # Class indices
-        # Check if any detected class corresponds to "car"
-        car_present = any(car_detector.names[int(cls)] == "car" for cls in classes)
+        # Check if any detected class corresponds to "bike" or "motorcycle"
+        bike_present = any(bike_detector.names[int(cls)] in ["bike", "motorcycle"] for cls in classes)
     
-    if not car_present:
-        return None, "No car detected in the image. Please upload an image containing a car."
+    if bike_present:
+        return None, "Bike detected in the image. Damage detection is only for cars."
 
     # Get predictions from the parts detection model
     results = parts_model.predict(source=image_path, save=False)
@@ -131,7 +131,7 @@ def analyze_damage():
     try:
         damaged_parts, img_base64_or_error = process_image(image_path)
         if damaged_parts is None:
-            # Return an error response if no car is detected
+            # Return an error response if a bike is detected
             return jsonify({'error': img_base64_or_error}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 500
