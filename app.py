@@ -9,8 +9,8 @@ import tempfile
 
 app = Flask(__name__)
 
-# Load the YOLO models
-car_detector = YOLO('yolov8_pretrained.pt')  # Pre-trained YOLOv8 model for car detection
+# Load the YOLOv8 models
+car_detector = YOLO('yolov8n.pt')           # YOLOv8 model for car detection (pre-trained model)
 parts_model = YOLO('besttrainptn.pt')        # Your custom parts detection model
 severity_model = YOLO('best.pt')             # Your custom severity classification model
 
@@ -34,7 +34,7 @@ def process_image(image_path):
     if img is None:
         raise ValueError("Image could not be read. Please check the image file.")
 
-    # Detect if a car is present in the image using the pre-trained model
+    # Detect if a car is present in the image using the YOLOv8 model
     car_detection_results = car_detector.predict(source=image_path, save=False)
     
     car_present = False
