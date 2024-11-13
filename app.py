@@ -9,11 +9,10 @@ import tempfile
 
 app = Flask(__name__)
 
-# Load the parts detection YOLO model
-parts_model = YOLO('besttrainptn.pt')  # Replace with your parts detection model path
-
-# Load the severity classification YOLO model
-severity_model = YOLO('best.pt')  # Replace with your severity classification model path
+# Load the YOLO models
+car_detector = YOLO('yolov8_pretrained.pt')  # Pre-trained YOLOv8 model for car detection
+parts_model = YOLO('besttrainptn.pt')        # Your custom parts detection model
+severity_model = YOLO('best.pt')             # Your custom severity classification model
 
 # Define the upload folder for images
 UPLOAD_FOLDER = 'uploads'
@@ -26,11 +25,8 @@ if not os.path.exists(UPLOAD_FOLDER):
 # Define the allowed file extensions
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
 
-
 def allowed_file(filename):
-    return '.' in filename and \
-        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def process_image(image_path):
     # Read the image using OpenCV
@@ -38,9 +34,20 @@ def process_image(image_path):
     if img is None:
         raise ValueError("Image could not be read. Please check the image file.")
 
+    # Detect if a car is present in the image using the pre-trained model
+    car_detection_results = car_detector.predict(source=image_path, save=False)
+    
+    car_present = False
+    for result in car_detection_results:
+        classes = result.boxes.cls.numpy()  # Class indices
+        # Check if any detected class corresponds to "car"
+        car_present = any(car_detector.names[int(cls)] == "car" for cls in classes)
+    
+    if not car_present:
+        return None, "No car detected in the image. Please upload an image containing a car."
+
     # Get predictions from the parts detection model
     results = parts_model.predict(source=image_path, save=False)
-
     damaged_parts = []
 
     for result in results:
@@ -103,7 +110,6 @@ def process_image(image_path):
 
     return damaged_parts, img_base64
 
-
 @app.route('/analyze', methods=['POST'])
 def analyze_damage():
     if 'image' not in request.files:
@@ -123,7 +129,10 @@ def analyze_damage():
     image.save(image_path)
 
     try:
-        damaged_parts, img_base64 = process_image(image_path)
+        damaged_parts, img_base64_or_error = process_image(image_path)
+        if damaged_parts is None:
+            # Return an error response if no car is detected
+            return jsonify({'error': img_base64_or_error}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:
@@ -133,9 +142,8 @@ def analyze_damage():
 
     return jsonify({
         'damaged_parts': damaged_parts,
-        'processed_image_base64': img_base64
+        'processed_image_base64': img_base64_or_error
     }), 200
-
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
