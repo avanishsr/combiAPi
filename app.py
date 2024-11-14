@@ -37,18 +37,16 @@ def process_image(image_path):
     # Use the classification model to check if the image is a car or bike
     classification_results = classification_model.predict(source=image_path, save=False)
     
-    is_car = False
     for result in classification_results:
         classes = result.probs.top1  # Top predicted class
         class_name = classification_model.names[int(classes)]
         
         # Check if the top prediction is "car"
-        is_car = class_name == "car"
-    
-    if not is_car:
-        return None, "The uploaded image is not a car. Please upload a car image for damage detection."
+        if class_name != "car":
+            # Return an error message and skip further processing if it's a bike
+            return None, "The uploaded image is not a car. Please upload a car image for damage detection."
 
-    # Get predictions from the parts detection model
+    # Proceed with parts detection and severity classification if it is a car
     results = parts_model.predict(source=image_path, save=False)
     damaged_parts = []
 
