@@ -10,7 +10,7 @@ import tempfile
 app = Flask(__name__)
 
 # Load the parts detection YOLO model
-parts_model = YOLO('besttrainptn.pt')  # Replace with your parts detection model path
+parts_model = YOLO('best6k.pt')  # Replace with your parts detection model path
 
 # Load the severity classification YOLO model
 severity_model = YOLO('best.pt')  # Replace with your severity classification model path
